@@ -33,7 +33,7 @@ list($course, $cm, $zoom) = zoom_get_instance_setup();
 
 // Check capability.
 $context = context_module::instance($cm->id);
-require_capability('mod/zoom:addinstance', $context);
+require_capability('report/progress:view', $context);
 
 $PAGE->set_url('/mod/zoom/report.php', array('id' => $cm->id));
 

@@ -36,7 +36,7 @@ $config = get_config('zoom');
 list($course, $cm, $zoom) = zoom_get_instance_setup();
 
 $context = context_module::instance($cm->id);
-$iszoommanager = has_capability('mod/zoom:addinstance', $context);
+$iszoommanager = has_capability('report/progress:view', $context);
 
 $event = \mod_zoom\event\course_module_viewed::create(array(
     'objectid' => $PAGE->cm->instance,

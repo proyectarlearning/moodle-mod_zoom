@@ -35,7 +35,7 @@ require_course_login($course);
 
 $context = context_course::instance($course->id);
 require_capability('mod/zoom:view', $context);
-$iszoommanager = has_capability('mod/zoom:addinstance', $context);
+$iszoommanager = has_capability('report/progress:view', $context);
 
 $params = array(
     'context' => $context

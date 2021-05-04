@@ -35,7 +35,7 @@ global $DB;
 
 // Check capability.
 $context = context_module::instance($cm->id);
-require_capability('mod/zoom:addinstance', $context);
+require_capability('report/progress:view', $context);
 
 $uuid = required_param('uuid', PARAM_RAW);
 $export = optional_param('export', null, PARAM_ALPHA);
