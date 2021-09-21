@@ -52,12 +52,6 @@ if (!class_exists('Firebase\JWT\JWT')) {
 class mod_zoom_webservice {
 
     /**
-     * API base URL.
-     * @var string
-     */
-    const API_URL = 'https://api.zoom.us/v2/';
-
-    /**
      * API calls: maximum number of retries.
      * @var int
      */
@@ -91,6 +85,12 @@ class mod_zoom_webservice {
     protected $apisecret;
 
     /**
+     * API base URL.
+     * @var string
+     */
+    protected $apiurl;
+
+    /**
      * Whether to recycle licenses.
      * @var bool
      */
@@ -120,16 +120,25 @@ class mod_zoom_webservice {
      */
     public function __construct() {
         $config = get_config('zoom');
+
+        // Get and remember the API key.
         if (!empty($config->apikey)) {
             $this->apikey = $config->apikey;
         } else {
             throw new moodle_exception('errorwebservice', 'mod_zoom', '', get_string('zoomerr_apikey_missing', 'zoom'));
         }
+
+        // Get and remember the API secret.
         if (!empty($config->apisecret)) {
             $this->apisecret = $config->apisecret;
         } else {
             throw new moodle_exception('errorwebservice', 'mod_zoom', '', get_string('zoomerr_apisecret_missing', 'zoom'));
         }
+
+        // Get and remember the API URL.
+        $this->apiurl = zoom_get_api_url();
+
+        // Get and remember the plugin settings to recycle licenses.
         if (!empty($config->utmost)) {
             $this->recyclelicenses = $config->utmost;
         }
@@ -176,7 +185,7 @@ class mod_zoom_webservice {
      */
     protected function _make_call($path, $data = array(), $method = 'get') {
         global $CFG;
-        $url = self::API_URL . $path;
+        $url = $this->apiurl . $path;
         $method = strtolower($method);
         $proxyhost = get_config('zoom', 'proxyhost');
         $cfg = new stdClass();
@@ -328,7 +337,7 @@ class mod_zoom_webservice {
         $url = 'users';
         $data = array('action' => 'autocreate');
         $data['user_info'] = array(
-            'email' => $user->email,
+            'email' => zoom_get_api_identifier($user),
             'type' => ZOOM_USER_TYPE_PRO,
             'first_name' => $user->firstname,
             'last_name' => $user->lastname,
@@ -528,9 +537,29 @@ class mod_zoom_webservice {
         }
 
         if (!empty($zoom->webinar)) {
-            $data['type'] = $zoom->recurring ? ZOOM_RECURRING_WEBINAR : ZOOM_SCHEDULED_WEBINAR;
+            if ($zoom->recurring) {
+                if ($zoom->recurrence_type == ZOOM_RECURRINGTYPE_NOTIME) {
+                    $data['type'] = ZOOM_RECURRING_WEBINAR;
+                } else {
+                    $data['type'] = ZOOM_RECURRING_FIXED_WEBINAR;
+                }
+            } else {
+                $data['type'] = ZOOM_SCHEDULED_WEBINAR;
+            }
         } else {
-            $data['type'] = $zoom->recurring ? ZOOM_RECURRING_MEETING : ZOOM_SCHEDULED_MEETING;
+            if ($zoom->recurring) {
+                if ($zoom->recurrence_type == ZOOM_RECURRINGTYPE_NOTIME) {
+                    $data['type'] = ZOOM_RECURRING_MEETING;
+                } else {
+                    $data['type'] = ZOOM_RECURRING_FIXED_MEETING;
+                }
+            } else {
+                $data['type'] = ZOOM_SCHEDULED_MEETING;
+            }
+        }
+
+        // Add fields which are effective for meetings only, but not for webinars.
+        if (empty($zoom->webinar)) {
             $data['settings']['participant_video'] = (bool) ($zoom->option_participants_video);
             $data['settings']['join_before_host'] = (bool) ($zoom->option_jbh);
             $data['settings']['encryption_type'] = (isset($zoom->option_encryption_type) &&
@@ -540,7 +569,32 @@ class mod_zoom_webservice {
             $data['settings']['mute_upon_entry'] = (bool) ($zoom->option_mute_upon_entry);
         }
 
-        if ($data['type'] == ZOOM_SCHEDULED_MEETING || $data['type'] == ZOOM_SCHEDULED_WEBINAR) {
+        // Add recurrence object.
+        if ($zoom->recurring && $zoom->recurrence_type != ZOOM_RECURRINGTYPE_NOTIME) {
+            $data['recurrence']['type'] = (int) $zoom->recurrence_type;
+            $data['recurrence']['repeat_interval'] = (int) $zoom->repeat_interval;
+            if ($zoom->recurrence_type == ZOOM_RECURRINGTYPE_WEEKLY) {
+                $data['recurrence']['weekly_days'] = $zoom->weekly_days;
+            }
+            if ($zoom->recurrence_type == ZOOM_RECURRINGTYPE_MONTHLY) {
+                if ($zoom->monthly_repeat_option == ZOOM_MONTHLY_REPEAT_OPTION_DAY) {
+                    $data['recurrence']['monthly_day'] = (int) $zoom->monthly_day;
+                } else {
+                    $data['recurrence']['monthly_week'] = (int) $zoom->monthly_week;
+                    $data['recurrence']['monthly_week_day'] = (int) $zoom->monthly_week_day;
+                }
+            }
+            if ($zoom->end_date_option == ZOOM_END_DATE_OPTION_AFTER) {
+                $data['recurrence']['end_times'] = (int) $zoom->end_times;
+            } else {
+                $data['recurrence']['end_date_time'] = gmdate('Y-m-d\TH:i:s\Z', $zoom->end_date_time);
+            }
+        }
+
+        if ($data['type'] === ZOOM_SCHEDULED_MEETING ||
+            $data['type'] === ZOOM_RECURRING_FIXED_MEETING ||
+            $data['type'] === ZOOM_SCHEDULED_WEBINAR ||
+            $data['type'] === ZOOM_RECURRING_FIXED_WEBINAR) {
             // Convert timestamp to ISO-8601. The API seems to insist that it end with 'Z' to indicate UTC.
             $data['start_time'] = gmdate('Y-m-d\TH:i:s\Z', $zoom->start_time);
             $data['duration'] = (int) ceil($zoom->duration / 60);
@@ -631,6 +685,9 @@ class mod_zoom_webservice {
      * @link https://marketplace.zoom.us/docs/api-reference/zoom-api/meetings/meetinginvitation
      */
     public function get_meeting_invitation($zoom) {
+        global $CFG;
+        require_once($CFG->dirroot . '/mod/zoom/classes/invitation.php');
+
         // Webinar does not have meeting invite info.
         if ($zoom->webinar) {
             return new \mod_zoom\invitation(null);

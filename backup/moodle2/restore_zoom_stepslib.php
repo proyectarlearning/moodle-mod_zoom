@@ -70,7 +70,7 @@ class restore_zoom_activity_structure_step extends restore_activity_structure_st
         $updateddata = $service->create_meeting($data);
         if (!$updateddata) {
             $updateddata = new stdClass;
-            $updateddata->status = ZOOM_MEETING_EXPIRED;
+            $updateddata->exists_on_zoom = ZOOM_MEETING_EXPIRED;
         }
 
         $data->start_url = $updateddata->start_url;
@@ -90,6 +90,11 @@ class restore_zoom_activity_structure_step extends restore_activity_structure_st
         // Create the zoom instance.
         $newitemid = $DB->insert_record('zoom', $data);
         $this->apply_activity_instance($newitemid);
+
+        // Create the calendar events for the new meeting.
+        $data->id = $newitemid;
+        $zoom = populate_zoom_from_response($data, $updateddata);
+        zoom_calendar_item_update($zoom);
     }
 
     /**
