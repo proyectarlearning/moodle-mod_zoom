@@ -15,14 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Library of interface functions and constants for module zoom
- *
- * All the core Moodle functions, neeeded to allow the module to work
- * integrated in Moodle should be placed here.
- *
- * All the zoom specific functions, needed to implement all the module
- * logic, should go to locallib.php. This will help to save some memory when
- * Moodle is performing actions across all modules.
+ * Task: get_meeting_reports
  *
  * @package    mod_zoom
  * @copyright  2018 UC Regents
@@ -38,10 +31,6 @@ require_once($CFG->dirroot . '/mod/zoom/locallib.php');
 
 /**
  * Scheduled task to get the meeting participants for each .
- *
- * @package   mod_zoom
- * @copyright 2018 UC Regents
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class get_meeting_reports extends \core\task\scheduled_task {
 
@@ -475,15 +464,13 @@ class get_meeting_reports extends \core\task\scheduled_task {
         $meeting->zoomid = $zoomrecord->id;
 
         // Insert or update meeting details.
-        if (!($DB->record_exists('zoom_meeting_details',
-                array('meeting_id' => $meeting->meeting_id, 'uuid' => $meeting->uuid)))) {
+        if (!($DB->record_exists('zoom_meeting_details', ['uuid' => $meeting->uuid]))) {
             $this->debugmsg('Inserting zoom_meeting_details');
             $detailsid = $DB->insert_record('zoom_meeting_details', $meeting);
         } else {
             // Details entry already exists, so update it.
             $this->debugmsg('Updating zoom_meeting_details');
-            $detailsid = $DB->get_field('zoom_meeting_details', 'id',
-                    array('meeting_id' => $meeting->meeting_id, 'uuid' => $meeting->uuid));
+            $detailsid = $DB->get_field('zoom_meeting_details', 'id', ['uuid' => $meeting->uuid]);
             $meeting->id = $detailsid;
             $DB->update_record('zoom_meeting_details', $meeting);
         }

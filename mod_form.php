@@ -33,10 +33,6 @@ require_once($CFG->dirroot.'/mod/zoom/locallib.php');
 
 /**
  * Module instance settings form
- *
- * @package    mod_zoom
- * @copyright  2015 UC Regents
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class mod_zoom_mod_form extends moodleform_mod {
 
@@ -153,8 +149,8 @@ class mod_zoom_mod_form extends moodleform_mod {
         // Adding the "general" fieldset, where all the common settings are showed.
         $mform->addElement('header', 'general', get_string('general', 'form'));
 
-        // Add topic (stored in database as 'name').
-        $mform->addElement('text', 'name', get_string('topic', 'zoom'), array('size' => '64'));
+        // Add title (stored in database as 'name').
+        $mform->addElement('text', 'name', get_string('title', 'zoom'), array('size' => '64'));
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
         $mform->addRule('name', get_string('maximumchars', '', 300), 'maxlength', 300, 'client');
@@ -237,7 +233,13 @@ class mod_zoom_mod_form extends moodleform_mod {
         $monthlyweekoptions = zoom_get_monthweek_options();
 
         $group = [];
-        $group[] = $mform->createElement('radio', 'monthly_repeat_option', '', get_string('day', 'calendar'), ZOOM_MONTHLY_REPEAT_OPTION_DAY);
+        $group[] = $mform->createElement(
+            'radio',
+            'monthly_repeat_option',
+            '',
+            get_string('day', 'calendar'),
+            ZOOM_MONTHLY_REPEAT_OPTION_DAY
+        );
         $group[] = $mform->createElement('select', 'monthly_day', '', $monthoptions);
         $group[] = $mform->createElement('static', 'month_day_text', '', get_string('month_day_text', 'zoom'));
         $group[] = $mform->createElement('radio', 'monthly_repeat_option', '', '', ZOOM_MONTHLY_REPEAT_OPTION_WEEK);
@@ -255,9 +257,21 @@ class mod_zoom_mod_form extends moodleform_mod {
             $maxoptions[$i] = $i;
         }
         $group = [];
-        $group[] = $mform->createElement('radio', 'end_date_option', '', get_string('end_date_option_by', 'zoom'), ZOOM_END_DATE_OPTION_BY);
+        $group[] = $mform->createElement(
+            'radio',
+            'end_date_option',
+            '',
+            get_string('end_date_option_by', 'zoom'),
+            ZOOM_END_DATE_OPTION_BY
+        );
         $group[] = $mform->createElement('date_selector', 'end_date_time', '');
-        $group[] = $mform->createElement('radio', 'end_date_option', '', get_string('end_date_option_after', 'zoom'), ZOOM_END_DATE_OPTION_AFTER);
+        $group[] = $mform->createElement(
+            'radio',
+            'end_date_option',
+            '',
+            get_string('end_date_option_after', 'zoom'),
+            ZOOM_END_DATE_OPTION_AFTER
+        );
         $group[] = $mform->createElement('select', 'end_times', '', $maxoptions);
         $group[] = $mform->createElement('static', 'end_times_text', '', get_string('end_date_option_occurrences', 'zoom'));
         $mform->addGroup($group, 'radioenddate', get_string('enddate', 'zoom'), null, false);
@@ -274,7 +288,7 @@ class mod_zoom_mod_form extends moodleform_mod {
             // If we are creating a new instance.
             if ($isnew) {
                 // Check if the user has a webinar license.
-                $haswebinarlicense = $service->_get_user_settings($zoomuser->id)->feature->webinar;
+                $haswebinarlicense = $service->get_user_settings($zoomuser->id)->feature->webinar;
 
                 // Only show if the admin always wants to show this widget or
                 // if the admin wants to show this widget conditionally and the user has a valid license.
@@ -296,6 +310,25 @@ class mod_zoom_mod_form extends moodleform_mod {
             } else {
                 $mform->addElement('static', 'webinaralreadyset', get_string('webinar', 'zoom'),
                         get_string('webinar_already_false', 'zoom'));
+            }
+        }
+
+        // Add tracking fields, if configured in Moodle AND Zoom.
+        $defaulttrackingfields = zoom_clean_tracking_fields();
+        foreach ($defaulttrackingfields as $key => $defaulttrackingfield) {
+            $configname = 'tf_' . $key . '_field';
+            if (!empty($config->$configname)) {
+                $mform->addElement('text', $key, $defaulttrackingfield);
+                $mform->setType($key, PARAM_TEXT);
+                $rvprop = 'tf_' . $key . '_recommended_values';
+                if (!empty($config->$rvprop)) {
+                    $mform->addElement('static', $key . '_recommended_values', null,
+                        get_string('trackingfields_recommendedvalues', 'mod_zoom') . $config->$rvprop);
+                }
+                $requiredproperty = 'tf_' . $key . '_required';
+                if (!empty($config->$requiredproperty)) {
+                    $mform->addRule($key, null, 'required', null, 'client');
+                }
             }
         }
 
@@ -483,6 +516,15 @@ class mod_zoom_mod_form extends moodleform_mod {
             }
         }
 
+        // Adding option for Recording Visiblity by default.
+        if (!empty($config->viewrecordings)) {
+            $mform->addElement('header', 'general', get_string('recording', 'mod_zoom'));
+            $mform->addElement('advcheckbox', 'recordings_visible_default', get_string('recordingvisibility', 'mod_zoom'),
+                    get_string('yes'));
+            $mform->setDefault('recordings_visible_default', 1);
+            $mform->addHelpButton('recordings_visible_default', 'recordingvisibility', 'mod_zoom');
+        }
+
         // Add meeting id.
         $mform->addElement('hidden', 'meeting_id', -1);
         $mform->setType('meeting_id', PARAM_ALPHANUMEXT);
@@ -597,6 +639,8 @@ class mod_zoom_mod_form extends moodleform_mod {
      * @param array $defaultvalues passed by reference
      */
     public function data_preprocessing(&$defaultvalues) {
+        global $DB;
+
         parent::data_preprocessing($defaultvalues);
 
         // Get config.
@@ -623,8 +667,19 @@ class mod_zoom_mod_form extends moodleform_mod {
                 );
             }
         }
-    }
 
+        if ($config->defaulttrackingfields !== '') {
+            // Populate modedit form fields with previously saved values.
+            $defaulttrackingfields = zoom_clean_tracking_fields();
+            $tfrows = $DB->get_records('zoom_meeting_tracking_fields', array('meeting_id' => $defaultvalues['id']));
+            foreach ($tfrows as $tfrow) {
+                $tfkey = $tfrow->tracking_field;
+                if (!empty($defaulttrackingfields[$tfkey])) {
+                    $defaultvalues[$tfkey] = $tfrow->value;
+                }
+            }
+        }
+    }
 
     /**
      * More validation on form data.
@@ -759,10 +814,6 @@ class mod_zoom_mod_form extends moodleform_mod {
 
 /**
  * Form to search for meeting reports.
- *
- * @package    mod_zoom
- * @copyright  2015 UC Regents
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class mod_zoom_report_form extends moodleform {
     /**

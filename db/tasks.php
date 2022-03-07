@@ -29,7 +29,7 @@ $tasks = array(
         'classname' => 'mod_zoom\task\update_meetings',
         'blocking' => 0,
         'minute' => '30',
-        'hour' => '*',
+        'hour' => '4',
         'day' => '*',
         'month' => '*',
         'dayofweek' => '*'
@@ -42,5 +42,32 @@ $tasks = array(
         'day' => '*',
         'dayofweek' => '*',
         'month' => '*'
-    )
+    ),
+    array(
+        'classname' => 'mod_zoom\task\update_tracking_fields',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '*/6',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*'
+    ),
+    array(
+        'classname' => 'mod_zoom\task\get_meeting_recordings',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '*/3',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*'
+    ),
+    array(
+        'classname' => 'mod_zoom\task\delete_meeting_recordings',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '0',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*'
+    ),
 );

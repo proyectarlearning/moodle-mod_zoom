@@ -151,6 +151,11 @@ if ($ADMIN->fulltree) {
             get_string('maskparticipantdata_help', 'mod_zoom'), 0, 1);
     $settings->add($maskparticipantdata);
 
+    $viewrecordings = new admin_setting_configcheckbox('zoom/viewrecordings',
+            get_string('option_view_recordings', 'mod_zoom'),
+            '', 0, 1, 0);
+    $settings->add($viewrecordings);
+
     // Supplementary features settings.
     $settings->add(new admin_setting_heading('zoom/supplementaryfeaturessettings',
             get_string('supplementaryfeaturessettings', 'mod_zoom'),
@@ -292,6 +297,12 @@ if ($ADMIN->fulltree) {
             get_string('option_mute_upon_entry_help', 'mod_zoom'),
             1, 1, 0);
     $settings->add($defaultmuteuponentryoption);
+
+    $defaulttrackingfields = new admin_setting_configtextarea('zoom/defaulttrackingfields',
+        get_string('trackingfields', 'mod_zoom'),
+        get_string('trackingfields_help', 'mod_zoom'), '');
+    $defaulttrackingfields->set_updatedcallback('mod_zoom_update_tracking_fields');
+    $settings->add($defaulttrackingfields);
 
     $invitationregexhelp = get_string('invitationregex_help', 'mod_zoom');
     if (!$moodlehashideif) {

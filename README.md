@@ -32,6 +32,54 @@ server is properly synchronized with the time servers.
 
 ## Changelog
 
+v4.3.3
+
+- Fix recording table database schema definitions #358 (thanks @jwalits)
+- Compatibility: Moodle upstream upgraded to php-jwt v6.0 #357
+- Renamed primary branch in GitHub to `main` #353
+
+v4.3.2
+
+- Only cache successful Zoom user ID values #350 (thanks @merrill-oakland)
+- Code quality: Align with moodle-local_codechecker v3.0.5 #351
+
+v4.3.1
+
+- Fix database schema alignment and associated code #335 (thanks @TomoTsuyuki)
+- Run "Update Meetings" task once per day by default #342 (thanks @deraadt for reporting)
+  - Note: You may need to manually adjust your task schedule on existing installs.
+
+v4.3
+
+- Add support for Zoom Cloud Recordings #292 (thanks @jwalits, @nstefanski, @abias, ETH Zürich)
+  - New setting `zoom/viewrecordings`
+  - New per activity setting `recordings_visible_default`
+- Fix tracking field PHP notices #337 (thanks @alina-kiz, @ndunand, @haietza)
+
+v4.2.1
+
+- Fix PHP 8 deprecation warning #332 (thanks @ndunand)
+- Fix duplicate column name on "All Meetings" page #330
+
+v4.2
+
+- Add support for Zoom Tracking Fields #308 (thanks @haietza, @porcospino)
+  - New setting `zoom/defaulttrackingfields`
+- Send plaintext version of Moodle intro to Zoom #290 (thanks @Ottendahl, @abias, @yanus for reporting)
+  - Note: To avoid losing Moodle's rich text, we no longer synchronize Zoom's topic back to Moodle.
+- Reduce zoom_refresh_events overreach; fix 'quick edit' issue #320 (thanks @alina-kiz, @jwalits for testing)
+- Add error handling and improve consistency in Zoom activity restore #328 (thanks @jonof)
+
+v4.1.3
+
+- Always use a fresh copy of start_url #316 (thanks @ShilVita for reporting)
+- Synchronize calendar events consistently #319 (thanks @martinoesterreicher for reporting)
+- Update JWT library to v5.4.0 #312
+
+v4.1.2
+
+- Make loadmeeting consistent via web and mobile (event, completion, grade, etc) #307 (thanks @nstefanski)
+
 v4.1.1
 
 - Fix invitation class not found exception #296 (thanks @byvamo for reporting)

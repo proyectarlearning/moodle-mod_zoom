@@ -22,19 +22,25 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+namespace mod_zoom;
 
-global $CFG;
-
-require_once($CFG->dirroot.'/mod/zoom/locallib.php');
+use advanced_testcase;
+use mod_zoom_webservice;
+use moodle_exception;
+use zoom_api_retry_failed_exception;
 
 /**
  * PHPunit testcase class.
- *
- * @copyright  2019 UC Regents
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class mod_zoom_webservice_test extends advanced_testcase {
+
+    /**
+     * Setup to ensure that fixtures are loaded.
+     */
+    public static function setUpBeforeClass(): void {
+        global $CFG;
+        require_once($CFG->dirroot . '/mod/zoom/locallib.php');
+    }
 
     /**
      * Setup before every test.
@@ -96,15 +102,15 @@ class mod_zoom_webservice_test extends advanced_testcase {
      */
     public function test_meeting_not_found_exception() {
         $mockservice = $this->getMockBuilder('\mod_zoom_webservice')
-            ->setMethods(array('_make_curl_call', '_get_curl_object'))
+            ->setMethods(array('make_curl_call', 'get_curl_object'))
             ->getMock();
 
         $mockservice->expects($this->any())
-            ->method('_make_curl_call')
+            ->method('make_curl_call')
             ->willReturn('{"code":3001,"message":"réunion introuvable"}');
 
         $mockservice->expects($this->any())
-            ->method('_get_curl_object')
+            ->method('get_curl_object')
             ->willReturn($this->notfoundmockcurl);
 
         $foundexception = false;
@@ -123,15 +129,15 @@ class mod_zoom_webservice_test extends advanced_testcase {
      */
     public function test_user_not_found_exception() {
         $mockservice = $this->getMockBuilder('\mod_zoom_webservice')
-            ->setMethods(array('_make_curl_call', '_get_curl_object'))
+            ->setMethods(array('make_curl_call', 'get_curl_object'))
             ->getMock();
 
         $mockservice->expects($this->any())
-            ->method('_make_curl_call')
+            ->method('make_curl_call')
             ->willReturn('{"code":1001,"message":"n’existe pas ou n’appartient pas à ce compte"}');
 
         $mockservice->expects($this->any())
-            ->method('_get_curl_object')
+            ->method('get_curl_object')
             ->willReturn($this->notfoundmockcurl);
 
         $foundexception = false;
@@ -178,15 +184,15 @@ class mod_zoom_webservice_test extends advanced_testcase {
         };
 
         $mockservice = $this->getMockBuilder('\mod_zoom_webservice')
-            ->setMethods(array('_make_curl_call', '_get_curl_object'))
+            ->setMethods(array('make_curl_call', 'get_curl_object'))
             ->getMock();
 
         $mockservice->expects($this->any())
-            ->method('_make_curl_call')
+            ->method('make_curl_call')
             ->willReturn('{"code":1120,"message":"utilisateur invalide"}');
 
         $mockservice->expects($this->any())
-            ->method('_get_curl_object')
+            ->method('get_curl_object')
             ->willReturn($invalidmockcurl);
 
         $foundexception = false;
@@ -252,17 +258,17 @@ class mod_zoom_webservice_test extends advanced_testcase {
         };
 
         $mockservice = $this->getMockBuilder('\mod_zoom_webservice')
-            ->setMethods(array('_make_curl_call', '_get_curl_object'))
+            ->setMethods(array('make_curl_call', 'get_curl_object'))
             ->getMock();
 
         $mockservice->expects($this->any())
-            ->method('_make_curl_call')
+            ->method('make_curl_call')
             ->willReturn('{"response":"success", "message": "", "code": 200}');
 
         // Class retrywithheadermockcurl will give 429 retry error 3 times
         // before giving a 200.
         $mockservice->expects($this->any())
-            ->method('_get_curl_object')
+            ->method('get_curl_object')
             ->willReturn($retrywithheadermockcurl);
 
         $result = $mockservice->get_user("1");
@@ -320,15 +326,15 @@ class mod_zoom_webservice_test extends advanced_testcase {
         };
 
         $mockservice = $this->getMockBuilder('\mod_zoom_webservice')
-            ->setMethods(array('_make_curl_call', '_get_curl_object'))
+            ->setMethods(array('make_curl_call', 'get_curl_object'))
             ->getMock();
 
         $mockservice->expects($this->any())
-            ->method('_make_curl_call')
+            ->method('make_curl_call')
             ->willReturn('{"response":"success"}');
 
         $mockservice->expects($this->any())
-            ->method('_get_curl_object')
+            ->method('get_curl_object')
             ->willReturn($retrynoheadermockcurl);
 
         $result = $mockservice->get_user("1");
@@ -398,11 +404,11 @@ class mod_zoom_webservice_test extends advanced_testcase {
         };
 
         $mockservice = $this->getMockBuilder('\mod_zoom_webservice')
-            ->setMethods(array('_get_curl_object'))
+            ->setMethods(array('get_curl_object'))
             ->getMock();
 
         $mockservice->expects($this->any())
-            ->method('_get_curl_object')
+            ->method('get_curl_object')
             ->willReturn($retryfailuremockcurl);
 
         $foundexception = false;
@@ -476,11 +482,11 @@ class mod_zoom_webservice_test extends advanced_testcase {
         };
 
         $mockservice = $this->getMockBuilder('\mod_zoom_webservice')
-            ->setMethods(array('_get_curl_object'))
+            ->setMethods(array('get_curl_object'))
             ->getMock();
 
         $mockservice->expects($this->any())
-            ->method('_get_curl_object')
+            ->method('get_curl_object')
             ->willReturn($retryqpsmockcurl);
 
         $foundexception = false;

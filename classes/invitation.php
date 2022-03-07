@@ -25,10 +25,15 @@
 
 namespace mod_zoom;
 
-defined('MOODLE_INTERNAL') || die();
-
+/**
+ * Invitation class.
+ */
 class invitation {
 
+    /**
+     * Invitation settings prefix.
+     * @var string
+     */
     const PREFIX = 'invitation_';
 
     /** @var string|null $invitation The unaltered zoom invitation text. */
