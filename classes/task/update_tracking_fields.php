@@ -49,12 +49,11 @@ class update_tracking_fields extends \core\task\scheduled_task {
      */
     public function execute() {
         global $CFG;
-        $config = get_config('zoom');
-        if (empty($config->apikey)) {
-            mtrace('Skipping task - ', get_string('zoomerr_apikey_missing', 'zoom'));
-            return;
-        } else if (empty($config->apisecret)) {
-            mtrace('Skipping task - ', get_string('zoomerr_apisecret_missing', 'zoom'));
+
+        try {
+            zoom_webservice();
+        } catch (\moodle_exception $exception) {
+            mtrace('Skipping task - ', $exception->getMessage());
             return;
         }
 
@@ -63,7 +62,9 @@ class update_tracking_fields extends \core\task\scheduled_task {
         // Show trace message.
         mtrace('Starting to process existing Zoom tracking fields ...');
 
-        mod_zoom_update_tracking_fields();
+        if (!mod_zoom_update_tracking_fields()) {
+            mtrace('Error: Failed to update tracking fields.');
+        }
 
         // Show trace message.
         mtrace('Finished processing existing Zoom tracking fields');

@@ -1,15 +1,48 @@
 # Intro
 
-Zoom is the web and app based video conferencing service (http://zoom.us). This
+[Zoom](https://zoom.us) is a web- and app-based video conferencing service. This
 plugin offers tight integration with Moodle, supporting meeting creation,
-synchronization, grading, and backup/restore.
+synchronization, grading and backup/restore.
 
-# Prerequisites
+## Prerequisites
 
 This plugin is designed for Educational or Business Zoom accounts.
 
-To connect to the Zoom APIs this plugin requires an account level JWT app to be
-created. To create an account-level JWT app the Developer Role Permission is
+To connect to the Zoom APIs, this plugin requires an account-level app to be
+created.
+
+### Server-to-Server OAuth
+To [create an account-level Server-to-Server OAuth app](https://marketplace.zoom.us/docs/guides/build/server-to-server-oauth-app), the `Server-to-server OAuth app`
+permission is required.
+
+The Server-to-Server OAuth app will generate a client ID, client secret and account ID.
+
+At a minimum, the following scopes are required by this plugin:
+
+- meeting:read:admin (Read meeting details)
+- meeting:write:admin (Create/Update meetings)
+- user:read:admin (Read user details)
+
+Additional scopes are required for certain functionality:
+
+- Account-level passcode / encryption policies
+    - account:read:admin
+- Reports for meetings / webinars
+    - dashboard_meetings:read:admin (Business accounts and higher)
+    - dashboard_webinars:read:admin  (Business accounts and higher)
+    - report:read:admin (Pro user and up)
+- Allow recordings to be viewed (zoom | viewrecordings)
+    - recording:read:admin
+- Tracking fields (zoom | defaulttrackingfields)
+    - tracking_fields:read:admin
+- Recycle licenses (zoom | utmost), (zoom | recycleonjoin)
+    - user:write:admin
+- Webinars (zoom | showwebinars), (zoom | webinardefault)
+    - webinar:read:admin
+    - webinar:write:admin
+
+### JWT
+JWT will be deprecated in June 2023. To create an account-level JWT app the 'JWT' permission is
 required.
 
 See https://marketplace.zoom.us/docs/guides/build/jwt-app. You will need to
@@ -18,19 +51,61 @@ create a JWT app and that will generate the API key and secret.
 ## Installation
 
 1. Install plugin to mod/zoom. More details at https://docs.moodle.org/39/en/Installing_plugins#Installing_a_plugin
-2. Once you install the plugin you need to set the following set the following
-   settings to enable the plugin:
+2. Once you install the plugin you need to set the following settings to enable the plugin:
+
+- Zoom client ID (mod_zoom | clientid)
+- Zoom client secret (mod_zoom | clientsecret)
+- Zoom account ID (mod_zoom | accountid)
+
+JWT will be deprecated in June 2023. For a JWT app, you need to set the following settings to enable the plugin:
 
 - Zoom API key (mod_zoom | apikey)
 - Zoom API secret (mod_zoom | apisecret)
-- Zoom home page URL (mod_zoom | zoomurl), Link to your organization's custom Zoom landing page.
 
 Please note that the API key and secret is not the same as the LTI key/secret.
 
 If you get "Access token is expired" errors, make sure the date/time on your
 server is properly synchronized with the time servers.
 
+- Zoom home page URL (mod_zoom | zoomurl), Link to your organization's custom Zoom landing page.
+
 ## Changelog
+
+v4.8.0
+
+- Feature: Support Server-to-Server OAuth app #387 (thanks @haietza, @mhughes2k)
+  - New settings `zoom/accountid`, `zoom/clientid`, `zoom/clientsecret`
+  - Reminder: You must [switch from JWT to Server-to-Server OAuth by June 2023](https://marketplace.zoom.us/docs/guides/build/jwt-app/jwt-faq/).
+- Regression: Locked settings were not being applied #407 (thanks @krab-stik)
+  - Introduced in v4.7.0 while adding support for automatic recording.
+
+v4.7.0
+
+- Feature: Allow automatic recording #390 (thanks @aduranterres, @lcollong)
+  - New settings `zoom/recordingoption`, `zoom/allowrecordingchangeoption`
+  - New per activity setting `option_auto_recording`
+- Performance: Static caching of repeated API calls #402 (thanks @aduranterres)
+
+v4.6.2
+
+- Regression: Rename mustache templates for backward compatibility #398 (thanks @PhilipBeacon)
+  - Introduced in v4.6.0 by new mustache templates in sub-directories (a Moodle 3.8 feature).
+- Bugfix: Recognize the Webinar capabilities of a Zoom Events license #338 (thanks @dottbarbieri)
+- Bugfix: Avoid PHP Warning when restoring Zoom activities without breakout room data #399
+
+v4.6.1
+
+- Bugfix: Avoid JavaScript error when 'Show More' button does not exist #392 (thanks @mwithheld)
+- Bugfix: Add missing privacy coverage for breakout rooms; fix privacy data deletion #395 (thanks @hdagheda)
+
+v4.6.0
+
+- Feature: Pre-assign Breakout Rooms #371 (thanks @annouarf, @levemar, University of Montreal, @mhughes2k)
+- Bugfix: Validate start times and duration for timed recurring meetings #389 (thanks @nchan31, @jwalits)
+
+v4.5.3
+
+- Bugfix: Allow plugin settings to update without a configuration exception #386 (thanks @acquaalta)
 
 v4.5.2
 
@@ -243,7 +318,7 @@ v2.1
 v2.0.1
 
 - Fixing conflicts with Firebase\JWT library. If more conflicts are found,
-  please contact plugin maintainer to add whitelist in classes/webservice.php.
+  please contact plugin maintainer to add to list in classes/webservice.php.
 
 v2.0
 

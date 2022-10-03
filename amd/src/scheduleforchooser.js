@@ -14,27 +14,33 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Toggles text to be shown when a user hits 'Show More' and
- * hides text when user hits 'Show Less'
+ * Schedule for selection handler.
  *
- * @copyright  2020 UC Regents
+ * @module     mod_zoom/scheduleforchooser
+ * @copyright  2022 Antonio Duran Terres <antonio@joomdle.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import {get_string as getString} from "core/str";
+const Selectors = {
+    fields: {
+        selector: '[data-scheduleforchooser-field="selector"]',
+        updateButton: '[data-scheduleforchooser-field="updateButton"]',
+    },
+};
 
+/**
+ * Initialise the schedule_for chooser.
+ */
 export const init = () => {
-  const button = document.querySelector("#show-more-button");
-  if (button !== null) {
-    const body = document.querySelector("#show-more-body");
-    button.addEventListener("click", async() => {
-      if (body.style.display === "") {
-        body.style.display = "none";
-        button.innerHTML = await getString("meeting_invite_show", "mod_zoom");
-      } else {
-        body.style.display = "";
-        button.innerHTML = await getString("meeting_invite_hide", "mod_zoom");
-      }
+    document.querySelector(Selectors.fields.selector).addEventListener('change', e => {
+        const form = e.target.closest('form');
+        const updateButton = form.querySelector(Selectors.fields.updateButton);
+        const fieldset = updateButton.closest('fieldset');
+
+        const url = new URL(form.action);
+        url.hash = fieldset.id;
+
+        form.action = url.toString();
+        updateButton.click();
     });
-  }
 };
