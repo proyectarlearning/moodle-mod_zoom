@@ -53,11 +53,10 @@ class mod_zoom_mod_form extends moodleform_mod {
 
         $isnew = empty($this->_cm);
 
-        $zoomapiidentifier = zoom_get_api_identifier($USER);
-        $zoomuser = zoom_get_user($zoomapiidentifier);
+        $zoomuserid = zoom_get_user_id(false);
 
         // If creating a new instance, but the Zoom user does not exist.
-        if ($isnew && $zoomuser === false) {
+        if ($isnew && $zoomuserid === false) {
             // Assume user is using Zoom for the first time.
             $errstring = 'zoomerr_usernotfound';
             // After they set up their account, the user should continue to the page they were on.
@@ -70,18 +69,18 @@ class mod_zoom_mod_form extends moodleform_mod {
         $scheduleusers = [];
 
         $canschedule = false;
-        if ($zoomuser !== false) {
+        if ($zoomuserid !== false) {
             // Get the array of users they can schedule.
-            $canschedule = zoom_webservice()->get_schedule_for_users($zoomapiidentifier);
+            $canschedule = zoom_webservice()->get_schedule_for_users($zoomuserid);
         }
 
         if (!empty($canschedule)) {
             // Add the current user.
-            $canschedule[$zoomuser->id] = new stdClass();
-            $canschedule[$zoomuser->id]->email = $USER->email;
+            $canschedule[$zoomuserid] = new stdClass();
+            $canschedule[$zoomuserid]->email = $USER->email;
 
             // If the activity exists and the current user is not the current host.
-            if (!$isnew && $zoomuser->id !== $this->current->host_id) {
+            if (!$isnew && $zoomuserid !== $this->current->host_id) {
                 // Get intersection of current host's schedulers and $USER's schedulers to prevent zoom errors.
                 $currenthostschedulers = zoom_webservice()->get_schedule_for_users($this->current->host_id);
                 if (!empty($currenthostschedulers)) {
@@ -115,10 +114,9 @@ class mod_zoom_mod_form extends moodleform_mod {
             }
         }
 
-        $meetinginfo = new stdClass();
         if (!$isnew) {
             try {
-                $meetinginfo = zoom_webservice()->get_meeting_webinar_info($this->current->meeting_id, $this->current->webinar);
+                zoom_webservice()->get_meeting_webinar_info($this->current->meeting_id, $this->current->webinar);
             } catch (moodle_exception $error) {
                 // If the meeting can't be found, offer to recreate the meeting on Zoom.
                 if (zoom_is_meeting_gone_error($error)) {
@@ -136,14 +134,17 @@ class mod_zoom_mod_form extends moodleform_mod {
         // of people that they can schedule for, allow them to change the host, otherwise don't.
         $allowschedule = false;
         if (!$isnew) {
-            try {
-                $founduser = zoom_get_user($meetinginfo->host_id);
-                if ($founduser && array_key_exists($founduser->email, $scheduleusers)) {
-                    $allowschedule = true;
+            // Only need to check if there are scheduling options available.
+            if (!empty($scheduleusers)) {
+                try {
+                    $founduser = zoom_get_user($this->current->host_id);
+                    if ($founduser && array_key_exists($founduser->email, $scheduleusers)) {
+                        $allowschedule = true;
+                    }
+                } catch (moodle_exception $error) {
+                    // Don't need to throw an error, just leave allowschedule as false.
+                    $allowschedule = false;
                 }
-            } catch (moodle_exception $error) {
-                // Don't need to throw an error, just leave allowschedule as false.
-                $allowschedule = false;
             }
         } else {
             $allowschedule = true;
@@ -156,7 +157,7 @@ class mod_zoom_mod_form extends moodleform_mod {
         $mform->addElement('header', 'general', get_string('general', 'form'));
 
         // Add title (stored in database as 'name').
-        $mform->addElement('text', 'name', get_string('title', 'zoom'), array('size' => '64'));
+        $mform->addElement('text', 'name', get_string('title', 'zoom'), ['size' => '64']);
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
         $mform->addRule('name', get_string('maximumchars', '', 300), 'maxlength', 300, 'client');
@@ -168,14 +169,18 @@ class mod_zoom_mod_form extends moodleform_mod {
         $mform->addElement('header', 'general', get_string('schedule', 'mod_zoom'));
 
         // Add date/time. Validation in validation().
-        $mform->addElement('date_time_selector', 'start_time', get_string('start_time', 'zoom'));
+        $starttimeoptions = [
+            'step' => 5,
+            'defaulttime' => time() + 3600,
+        ];
+        $mform->addElement('date_time_selector', 'start_time', get_string('start_time', 'zoom'), $starttimeoptions);
         // Start time needs to be enabled/disabled based on recurring checkbox as well recurrence_type.
         // Moved this control to javascript, rather than using disabledIf.
 
         // Add duration.
-        $mform->addElement('duration', 'duration', get_string('duration', 'zoom'), array('optional' => false));
+        $mform->addElement('duration', 'duration', get_string('duration', 'zoom'), ['optional' => false]);
         // Validation in validation(). Default to one hour.
-        $mform->setDefault('duration', array('number' => 1, 'timeunit' => 3600));
+        $mform->setDefault('duration', ['number' => 1, 'timeunit' => 3600]);
         // Duration needs to be enabled/disabled based on recurring checkbox as well recurrence_type.
         // Moved this control to javascript, rather than using disabledIf.
 
@@ -218,7 +223,7 @@ class mod_zoom_mod_form extends moodleform_mod {
             $weekdayid = 'weekly_days_' . $key;
             $attributes = [];
             $group[] = $mform->createElement('advcheckbox', $weekdayid, '',
-                $weekday, null, array(0, $key));
+                $weekday, null, [0, $key]);
         }
         $mform->addGroup($group, 'weekly_days_group', get_string('occurson', 'zoom'), ' ', false);
         $mform->hideif('weekly_days_group', 'recurrence_type', 'noteq', ZOOM_RECURRINGTYPE_WEEKLY);
@@ -294,7 +299,7 @@ class mod_zoom_mod_form extends moodleform_mod {
             // If we are creating a new instance.
             if ($isnew) {
                 // Check if the user has a webinar license.
-                $userfeatures = zoom_get_user_settings($zoomuser->id)->feature;
+                $userfeatures = zoom_get_user_settings($zoomuserid)->feature;
                 $haswebinarlicense = !empty($userfeatures->webinar) || !empty($userfeatures->zoom_events);
 
                 // Only show if the admin always wants to show this widget or
@@ -304,7 +309,7 @@ class mod_zoom_mod_form extends moodleform_mod {
                     // Add webinar option, disabled if the user cannot create webinars.
                     $webinarattr = null;
                     if (!$haswebinarlicense) {
-                        $webinarattr = array('disabled' => true, 'group' => null);
+                        $webinarattr = ['disabled' => true, 'group' => null];
                     }
                     $mform->addElement('advcheckbox', 'webinar', get_string('webinar', 'zoom'),
                             get_string('webinarthisis', 'zoom'), $webinarattr);
@@ -346,14 +351,11 @@ class mod_zoom_mod_form extends moodleform_mod {
         $mform->addHelpButton('show_schedule', 'showschedule', 'zoom');
 
         // Add registration widget.
-        $mform->addElement(
-            'advcheckbox',
-            'registration',
-            get_string('registration', 'mod_zoom'),
-            get_string('registration_text', 'mod_zoom'),
-            array(),
-            array(ZOOM_REGISTRATION_OFF, ZOOM_REGISTRATION_AUTOMATIC)
-        );
+        $registrationoptions = [
+            ZOOM_REGISTRATION_OFF => get_string('no'),
+            ZOOM_REGISTRATION_AUTOMATIC => get_string('registration_text', 'mod_zoom'),
+        ];
+        $mform->addElement('select', 'registration', get_string('registration', 'mod_zoom'), $registrationoptions);
         $mform->setDefault('registration', $config->defaultregistration);
         $mform->addHelpButton('registration', 'registration', 'mod_zoom');
         $mform->hideIf('registration', 'recurrence_type', 'eq', ZOOM_RECURRINGTYPE_NOTIME);
@@ -371,19 +373,25 @@ class mod_zoom_mod_form extends moodleform_mod {
         // Getting Course participants.
         $courseparticipants = [];
         foreach ($participants as $participant) {
-            $courseparticipants[] = array('participantid' => $participant->id, 'participantemail' => $participant->email);
+            $courseparticipants[] = ['participantid' => $participant->id, 'participantemail' => $participant->email];
         }
 
         // Getting Course groups.
         $coursegroups = [];
         foreach ($groups as $group) {
-            $coursegroups[] = array('groupid' => $group->id, 'groupname' => $group->name);
+            $coursegroups[] = ['groupid' => $group->id, 'groupname' => $group->name];
         }
 
         // Building meeting breakout rooms template data.
-        $templatedata  = array('rooms' => array(), 'roomscount' => 0,
-            'roomtoclone' => array('toclone' => 'toclone', 'courseparticipants' => $courseparticipants,
-                'coursegroups' => $coursegroups));
+        $templatedata = [
+            'rooms' => [],
+            'roomscount' => 0,
+            'roomtoclone' => [
+                'toclone' => 'toclone',
+                'courseparticipants' => $courseparticipants,
+                'coursegroups' => $coursegroups,
+            ],
+        ];
 
         $currentinstance = $this->current->instance;
         if ($currentinstance) {
@@ -425,9 +433,9 @@ class mod_zoom_mod_form extends moodleform_mod {
         $mform->addHelpButton('requirepasscode', 'requirepasscode', 'zoom');
 
         // Set default passcode and description from Zoom security settings.
-        $securitysettings = zoom_get_meeting_security_settings($this->current->host_id ?? $zoomapiidentifier);
+        $securitysettings = zoom_get_meeting_security_settings($this->current->host_id ?? $zoomuserid);
         // Add password.
-        $mform->addElement('text', 'meetingcode', get_string('setpasscode', 'zoom'), array('maxlength' => '10'));
+        $mform->addElement('text', 'meetingcode', get_string('setpasscode', 'zoom'), ['maxlength' => '10']);
         $mform->setType('meetingcode', PARAM_TEXT);
         // Check password uses valid characters.
         $regex = '/^[a-zA-Z0-9@_*-]{1,10}$/';
@@ -460,17 +468,17 @@ class mod_zoom_mod_form extends moodleform_mod {
                 $encryptionattr = null;
                 $defaultencryptiontype = $config->defaultencryptiontypeoption;
                 if (!$e2eispossible) {
-                    $encryptionattr = array('disabled' => true);
+                    $encryptionattr = ['disabled' => true];
                     $defaultencryptiontype = ZOOM_ENCRYPTION_TYPE_ENHANCED;
                 }
-                $mform->addGroup(array(
+                $mform->addGroup([
                         $mform->createElement('radio', 'option_encryption_type', '',
                                 get_string('option_encryption_type_enhancedencryption', 'zoom'),
                                 ZOOM_ENCRYPTION_TYPE_ENHANCED, $encryptionattr),
                         $mform->createElement('radio', 'option_encryption_type', '',
                                 get_string('option_encryption_type_endtoendencryption', 'zoom'),
                                 ZOOM_ENCRYPTION_TYPE_E2EE, $encryptionattr)
-                ), 'option_encryption_type_group', get_string('option_encryption_type', 'zoom'), null, false);
+                ], 'option_encryption_type_group', get_string('option_encryption_type', 'zoom'), null, false);
                 $mform->setDefault('option_encryption_type', $defaultencryptiontype);
                 $mform->addHelpButton('option_encryption_type_group', 'option_encryption_type', 'zoom');
                 $mform->disabledIf('option_encryption_type_group', 'webinar', 'checked');
@@ -508,28 +516,28 @@ class mod_zoom_mod_form extends moodleform_mod {
         $mform->addElement('header', 'general', get_string('media', 'mod_zoom'));
 
         // Add host/participants video options.
-        $mform->addGroup(array(
+        $mform->addGroup([
             $mform->createElement('radio', 'option_host_video', '', get_string('on', 'zoom'), true),
             $mform->createElement('radio', 'option_host_video', '', get_string('off', 'zoom'), false)
-        ), 'option_host_video_group', get_string('option_host_video', 'zoom'), null, false);
+        ], 'option_host_video_group', get_string('option_host_video', 'zoom'), null, false);
         $mform->setDefault('option_host_video', $config->defaulthostvideo);
         $mform->addHelpButton('option_host_video_group', 'option_host_video', 'zoom');
         $mform->disabledIf('option_host_video_group', 'webinar', 'checked');
 
-        $mform->addGroup(array(
+        $mform->addGroup([
             $mform->createElement('radio', 'option_participants_video', '', get_string('on', 'zoom'), true),
             $mform->createElement('radio', 'option_participants_video', '', get_string('off', 'zoom'), false)
-        ), 'option_participants_video_group', get_string('option_participants_video', 'zoom'), null, false);
+        ], 'option_participants_video_group', get_string('option_participants_video', 'zoom'), null, false);
         $mform->setDefault('option_participants_video', $config->defaultparticipantsvideo);
         $mform->addHelpButton('option_participants_video_group', 'option_participants_video', 'zoom');
         $mform->disabledIf('option_participants_video_group', 'webinar', 'checked');
 
         // Add audio options.
-        $mform->addGroup(array(
+        $mform->addGroup([
             $mform->createElement('radio', 'option_audio', '', get_string('audio_telephony', 'zoom'), ZOOM_AUDIO_TELEPHONY),
             $mform->createElement('radio', 'option_audio', '', get_string('audio_voip', 'zoom'), ZOOM_AUDIO_VOIP),
             $mform->createElement('radio', 'option_audio', '', get_string('audio_both', 'zoom'), ZOOM_AUDIO_BOTH)
-        ), 'option_audio_group', get_string('option_audio', 'zoom'), null, false);
+        ], 'option_audio_group', get_string('option_audio', 'zoom'), null, false);
         $mform->addHelpButton('option_audio_group', 'option_audio', 'zoom');
         $mform->setDefault('option_audio', $config->defaultaudiooption);
 
@@ -543,18 +551,24 @@ class mod_zoom_mod_form extends moodleform_mod {
         $allowrecordingchangeoption = $config->allowrecordingchangeoption;
         if ($allowrecordingchangeoption) {
             // Add auto recording options according to user settings.
-            $options = array(
+            $options = [
                 ZOOM_AUTORECORDING_NONE => get_string('autorecording_none', 'mod_zoom'),
-            );
-            $recordingsettings = zoom_get_user_settings($zoomuser->id)->recording;
+            ];
 
-            $localrecording = $recordingsettings->local_recording;
-            if ($localrecording) {
+            $hostuserid = $zoomuserid;
+            if (!empty($this->current->host_id)) {
+                $hostuserid = $this->current->host_id;
+            }
+
+            if (!empty($hostuserid)) {
+                $recordingsettings = zoom_get_user_settings($hostuserid)->recording;
+            }
+
+            if (!empty($recordingsettings->local_recording)) {
                 $options[ZOOM_AUTORECORDING_LOCAL] = get_string('autorecording_local', 'mod_zoom');
             }
 
-            $cloudrecording = $recordingsettings->cloud_recording;
-            if ($cloudrecording) {
+            if (!empty($recordingsettings->cloud_recording)) {
                 $options[ZOOM_AUTORECORDING_CLOUD] = get_string('autorecording_cloud', 'mod_zoom');
             }
 
@@ -589,7 +603,7 @@ class mod_zoom_mod_form extends moodleform_mod {
                 // If the admin wants to show the plain input field.
                 if ($config->showalternativehosts == ZOOM_ALTERNATIVEHOSTS_INPUTFIELD) {
                     // Add alternative hosts.
-                    $mform->addElement('text', 'alternative_hosts', get_string('alternative_hosts', 'zoom'), array('size' => '64'));
+                    $mform->addElement('text', 'alternative_hosts', get_string('alternative_hosts', 'zoom'), ['size' => '64']);
                     $mform->setType('alternative_hosts', PARAM_TEXT);
                     $mform->addHelpButton('alternative_hosts', 'alternative_hosts', 'zoom');
 
@@ -598,11 +612,12 @@ class mod_zoom_mod_form extends moodleform_mod {
                     // Get selectable alternative host users based on the capability.
                     $alternativehostschoices = zoom_get_selectable_alternative_hosts_list($this->context);
                     // Create autocomplete widget.
-                    $alternativehostsoptions = array(
-                            'multiple' => true,
-                            'showsuggestions' => true,
-                            'placeholder' => get_string('alternative_hosts_picker_placeholder', 'zoom'),
-                            'noselectionstring' => get_string('alternative_hosts_picker_noneselected', 'zoom'));
+                    $alternativehostsoptions = [
+                        'multiple' => true,
+                        'showsuggestions' => true,
+                        'placeholder' => get_string('alternative_hosts_picker_placeholder', 'zoom'),
+                        'noselectionstring' => get_string('alternative_hosts_picker_noneselected', 'zoom'),
+                    ];
                     $mform->addElement('autocomplete', 'alternative_hosts_picker', get_string('alternative_hosts', 'zoom'),
                             $alternativehostschoices, $alternativehostsoptions);
                     $mform->setType('alternative_hosts_picker', PARAM_EMAIL);
@@ -628,7 +643,7 @@ class mod_zoom_mod_form extends moodleform_mod {
                     $mform->addElement('checkbox', 'change_schedule_for', get_string('changehost', 'zoom'));
                     $mform->setDefault('schedule_for', strtolower(zoom_get_user($this->current->host_id)->email));
                 } else {
-                    $mform->setDefault('schedule_for', strtolower($zoomapiidentifier));
+                    $mform->setDefault('schedule_for', strtolower(zoom_get_api_identifier($USER)));
                 }
                 $mform->addHelpButton('schedule_for', 'schedulefor', 'zoom');
 
@@ -681,8 +696,6 @@ class mod_zoom_mod_form extends moodleform_mod {
      * Fill in the current page data for this course.
      */
     public function definition_after_data() {
-        global $USER;
-
         parent::definition_after_data();
 
         // Get config.
@@ -704,27 +717,30 @@ class mod_zoom_mod_form extends moodleform_mod {
 
             $scheduleforuser = current($values);
             $zoomuser = zoom_get_user($scheduleforuser);
+            $zoomuserid = $zoomuser->id;
+        } else if (!empty($this->current->host_id)) {
+            $zoomuserid = $this->current->host_id;
         } else {
-            $zoomapiidentifier = zoom_get_api_identifier($USER);
-            $zoomuser = zoom_get_user($zoomapiidentifier);
+            $zoomuserid = zoom_get_user_id(false);
         }
 
         $recordingelement =& $mform->getElement('option_auto_recording');
         $recordingelement->removeOptions();
 
         // Add auto recording options according to user settings.
-        $options = array(
+        $options = [
             ZOOM_AUTORECORDING_NONE => get_string('autorecording_none', 'mod_zoom'),
-        );
-        $recordingsettings = zoom_get_user_settings($zoomuser->id)->recording;
+        ];
 
-        $localrecording = $recordingsettings->local_recording;
-        if ($localrecording) {
+        if ($zoomuserid !== false) {
+            $recordingsettings = zoom_get_user_settings($zoomuserid)->recording;
+        }
+
+        if (!empty($recordingsettings->local_recording)) {
             $options[ZOOM_AUTORECORDING_LOCAL] = get_string('autorecording_local', 'mod_zoom');
         }
 
-        $cloudrecording = $recordingsettings->cloud_recording;
-        if ($cloudrecording) {
+        if (!empty($recordingsettings->cloud_recording)) {
             $options[ZOOM_AUTORECORDING_CLOUD] = get_string('autorecording_cloud', 'mod_zoom');
         }
 
@@ -769,7 +785,7 @@ class mod_zoom_mod_form extends moodleform_mod {
             // of selected alternative hosts.
 
             // Get latest list of alternative hosts from the DB.
-            $result = $DB->get_field('zoom', 'alternative_hosts', array('meeting_id' => $data->meeting_id), IGNORE_MISSING);
+            $result = $DB->get_field('zoom', 'alternative_hosts', ['meeting_id' => $data->meeting_id], IGNORE_MISSING);
 
             // Proceed only if there is a field of alternative hosts already.
             if ($result !== false) {
@@ -813,11 +829,6 @@ class mod_zoom_mod_form extends moodleform_mod {
                 // Unset the weekly fields.
                 $data = zoom_remove_monthly_options($data);
             }
-        }
-
-        // Workaround for MDL-76095 because automatically-approved registrations are mode "0".
-        if (isset($data->registration) && $data->registration === 'on') {
-            $data->registration = ZOOM_REGISTRATION_AUTOMATIC;
         }
 
         // Make sure registration is not enabled for No Fixed Time recurring meetings.
@@ -869,7 +880,7 @@ class mod_zoom_mod_form extends moodleform_mod {
         if ($config->defaulttrackingfields !== '') {
             // Populate modedit form fields with previously saved values.
             $defaulttrackingfields = zoom_clean_tracking_fields();
-            $tfrows = $DB->get_records('zoom_meeting_tracking_fields', array('meeting_id' => $defaultvalues['id']));
+            $tfrows = $DB->get_records('zoom_meeting_tracking_fields', ['meeting_id' => $defaultvalues['id']]);
             foreach ($tfrows as $tfrow) {
                 $tfkey = $tfrow->tracking_field;
                 if (!empty($defaulttrackingfields[$tfkey])) {
@@ -925,9 +936,9 @@ class mod_zoom_mod_form extends moodleform_mod {
             $errors['meetingcode'] = get_string('err_password_required', 'mod_zoom');
         }
 
-        $zoomapiidentifier = zoom_get_api_identifier($USER);
-        if (isset($data['schedule_for']) && strtolower($data['schedule_for']) !== strtolower($zoomapiidentifier)) {
-            $scheduleusers = zoom_webservice()->get_schedule_for_users($zoomapiidentifier);
+        if (isset($data['schedule_for']) && strtolower($data['schedule_for']) !== strtolower(zoom_get_api_identifier($USER))) {
+            $zoomuserid = zoom_get_user_id();
+            $scheduleusers = zoom_webservice()->get_schedule_for_users($zoomuserid);
             $scheduleok = false;
             foreach ($scheduleusers as $zuser) {
                 if (strtolower($zuser->email) === strtolower($data['schedule_for'])) {
