@@ -47,8 +47,13 @@ class mod_zoom_mod_form extends moodleform_mod {
      */
     public function definition() {
         global $PAGE, $USER, $OUTPUT;
+
+        // We don't do anything custom with completion data, so avoid doing any unnecessary work.
+        if ($PAGE->pagetype === 'course-editbulkcompletion' || $PAGE->pagetype === 'course-editdefaultcompletion') {
+            return;
+        }
+
         $config = get_config('zoom');
-        $PAGE->requires->css(new moodle_url('/mod/zoom/styles.css'));
         $PAGE->requires->js_call_amd("mod_zoom/form", 'init');
 
         $isnew = empty($this->_cm);
@@ -120,7 +125,7 @@ class mod_zoom_mod_form extends moodleform_mod {
         if (!$isnew) {
             try {
                 zoom_webservice()->get_meeting_webinar_info($this->current->meeting_id, $this->current->webinar);
-            } catch (moodle_exception $error) {
+            } catch (\mod_zoom\webservice_exception $error) {
                 // If the meeting can't be found, offer to recreate the meeting on Zoom.
                 if (zoom_is_meeting_gone_error($error)) {
                     $errstring = 'zoomerr_meetingnotfound';

@@ -12,8 +12,8 @@ To connect to the Zoom APIs, this plugin requires an account-level app to be
 created.
 
 ### Server-to-Server OAuth
-To [create an account-level Server-to-Server OAuth app](https://marketplace.zoom.us/docs/guides/build/server-to-server-oauth-app), the `Server-to-server OAuth app`
-permission is required.
+To [create an account-level Server-to-Server OAuth app](https://developers.zoom.us/docs/internal-apps/create/), the `Server-to-server OAuth app`
+permission is required. You should create a separate Server-to-Server OAuth app for each Moodle install.
 
 The Server-to-Server OAuth app will generate a client ID, client secret and account ID.
 
@@ -23,7 +23,7 @@ At a minimum, the following scopes are required by this plugin:
 - meeting:write:admin (Create/Update meetings)
 - user:read:admin (Read user details)
 
-Additional scopes are required for certain functionality:
+Optional functionality can be enabled by granting additional scopes:
 
 - Reports for meetings / webinars
     - dashboard_meetings:read:admin (Business accounts and higher)
@@ -39,35 +39,48 @@ Additional scopes are required for certain functionality:
     - webinar:read:admin
     - webinar:write:admin
 
-### JWT
-JWT will be deprecated in June 2023. To create an account-level JWT app the 'JWT' permission is
-required.
-
-See https://marketplace.zoom.us/docs/guides/build/jwt-app. You will need to
-create a JWT app and that will generate the API key and secret.
-
 ## Installation
 
-1. Install plugin to mod/zoom. More details at https://docs.moodle.org/en/Installing_plugins#Installing_a_plugin
-2. Once you install the plugin you need to set the following settings to enable the plugin:
+1. [Install plugin](https://docs.moodle.org/en/Installing_plugins#Installing_a_plugin) to the /mod/zoom folder in Moodle.
+2. After installing the plugin, the following settings need to be configured to use the plugin:
 
 - Zoom account ID (mod_zoom | accountid)
 - Zoom client ID (mod_zoom | clientid)
 - Zoom client secret (mod_zoom | clientsecret)
 
-JWT will be deprecated in June 2023. For a JWT app, you need to set the following settings to enable the plugin:
-
-- Zoom API key (mod_zoom | apikey)
-- Zoom API secret (mod_zoom | apisecret)
-
-Please note that the API key and secret is not the same as the LTI key/secret.
-
 If you get "Access token is expired" errors, make sure the date/time on your
 server is properly synchronized with the time servers.
 
-- Zoom home page URL (mod_zoom | zoomurl), Link to your organization's custom Zoom landing page.
-
 ## Changelog
+
+v5.0.0
+- Backward incompatible: Drop support for JWT authentication (thanks @aspark21)
+  - Zoom requires everyone to use Server-to-Server OAuth by September 1, 2023
+- Backward incompatible: Require PHP 7.1+ (Moodle 3.7+) (thanks @rlaneIT)
+- Backward incompatible: Drop Moodle 3.4 mobile support
+
+v4.10.3
+- Bugfix: Also use proxy settings for OAuth token request #494 (thanks @adnbes)
+- Bugfix: Clean up exception handling to avoid notice #482 (thanks @andremenrath)
+- Bugfix: Avoid course/activity completion form overhead #481 (thanks @phette23)
+- Regression: PHP 7.0 class constant visibility errors #495 (thanks @rlaneIT)
+  - Introduced in v4.10.1 when aligning with PSR-12 coding standards.
+
+v4.10.2
+
+- Regression: Instructors were unable to edit Zoom activity completion defaults #479 (thanks @phette23)
+  - Introduced in v4.6.0 when adding breakout room support.
+- Bugfix: Course reset now verifies that the Zoom checkbox is checked #483 (thanks @carlosalal)
+
+v4.10.1
+
+- Bugfix: Stop showing finished events in My Overview block #451 (thanks @nstefanski)
+- Bugfix: Automatically retry on TLS connection error #466 (thanks @lcollong)
+- Bugfix: Allow restoring activiting that are missing `option_auto_recording` #470 (thanks @lexxkoto)
+- Bugfix: Document that each Moodle install needs its own OAuth app #475 (thanks @DLM-unipd, @haietza)
+- Bugfix: Check required scopes before caching OAuth token #475 (thanks @tbeachy)
+- Code quality: Align with Moodle-compatible PSR-1 and PSR-12 rules #465
+- Special thanks to @rickbeasley for his contributions to this plugin and to the team.
 
 v4.10.0
 
@@ -113,7 +126,7 @@ v4.8.0
 
 - Feature: Support Server-to-Server OAuth app #387 (thanks @haietza, @mhughes2k)
   - New settings `zoom/accountid`, `zoom/clientid`, `zoom/clientsecret`
-  - Reminder: You must [switch from JWT to Server-to-Server OAuth by June 2023](https://marketplace.zoom.us/docs/guides/build/jwt-app/jwt-faq/).
+  - Reminder: You must [switch from JWT to Server-to-Server OAuth by June 2023](https://developers.zoom.us/docs/internal-apps/jwt-faq/).
 - Regression: Locked settings were not being applied #407 (thanks @krab-stik)
   - Introduced in v4.7.0 while adding support for automatic recording.
 
