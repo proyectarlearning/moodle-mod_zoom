@@ -31,6 +31,26 @@ use advanced_testcase;
  */
 class mod_zoom_grade_test extends advanced_testcase {
     /**
+     * @var \stdClass Course record.
+     */
+    private $course;
+
+    /**
+     * @var \stdClass User record for teacher.
+     */
+    private $teacher;
+
+    /**
+     * @var \stdClass User record for student.
+     */
+    private $student;
+
+    /**
+     * @var \mod_zoom_generator Plugin generator for tests.
+     */
+    private $generator;
+
+    /**
      * Setup to ensure that fixtures are loaded.
      */
     public static function setUpBeforeClass(): void {
@@ -56,7 +76,7 @@ class mod_zoom_grade_test extends advanced_testcase {
      * Tests that Zoom grades can be added and updated in the gradebook.
      * @covers ::zoom_grade_item_update
      */
-    public function test_grade_added() {
+    public function test_grade_added(): void {
         $params['course'] = $this->course->id;
         $params['grade'] = 100;
 
@@ -89,7 +109,7 @@ class mod_zoom_grade_test extends advanced_testcase {
      * Tests that the Zoom grade type cannot be changed to NONE if grades are already inputted.
      * @covers ::zoom_grade_item_update
      */
-    public function test_grade_type_not_none() {
+    public function test_grade_type_not_none(): void {
         $params['course'] = $this->course->id;
         $params['grade'] = 100;
 
@@ -120,7 +140,7 @@ class mod_zoom_grade_test extends advanced_testcase {
      * Tests that the Zoom grades can be deleted.
      * @covers ::zoom_grade_item_delete
      */
-    public function test_grade_delete() {
+    public function test_grade_delete(): void {
         $params['course'] = $this->course->id;
         $params['grade'] = 100;
 

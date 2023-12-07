@@ -15,18 +15,25 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Defines the version and other meta-info about the plugin.
+ * Exception class for Zoom API errors.
  *
- * @package    mod_zoom
- * @copyright  2015 UC Regents
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package   mod_zoom
+ * @copyright 2023 Jonathan Champ <jrchamp@ncsu.edu>
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+namespace mod_zoom;
 
-$plugin->component = 'mod_zoom';
-$plugin->version = 2023113000;
-$plugin->release = 'v5.1.3';
-$plugin->requires = 2019052000;
-$plugin->maturity = MATURITY_STABLE;
-$plugin->cron = 0;
+/**
+ * Entry not found on Zoom.
+ */
+class not_found_exception extends webservice_exception {
+    /**
+     * Constructor
+     * @param string $response      Web service response message
+     * @param int $errorcode     Web service response error code
+     */
+    public function __construct($response, $errorcode) {
+        parent::__construct($response, $errorcode, 'errorwebservice_notfound', 'mod_zoom');
+    }
+}

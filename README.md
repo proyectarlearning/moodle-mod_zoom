@@ -28,7 +28,7 @@ Optional functionality can be enabled by granting additional scopes:
 - Reports for meetings / webinars
     - dashboard_meetings:read:admin (Business accounts and higher)
     - dashboard_webinars:read:admin  (Business accounts and higher)
-    - report:read:admin (Pro user and up)
+    - report:read:admin (Pro accounts and higher)
 - Allow recordings to be viewed (zoom | viewrecordings)
     - recording:read:admin
 - Tracking fields (zoom | defaulttrackingfields)
@@ -53,13 +53,54 @@ server is properly synchronized with the time servers.
 
 ## Changelog
 
+v5.1.3
+
+- Bugfix: Allow editing a past Zoom meeting without changing the time #545 (thanks @davefoord, @tlock)
+- Bugfix: Remove unused start_url field from the database #546 (thanks @ShilVita)
+- Regression: "Recurring No Time" admin setting was defaulting to "Daily" #544 (thanks @easegill)
+  - Introduced in v4.9.0 when adding support for meeting registration.
+
+v5.1.2
+
+- Bugfix: Skip redundant calendar permissions check #535 (thanks @danowar2k)
+- Bugfix: Initialize scopes from cache to avoid TypeError #542 (thanks @foxlapinou)
+- Regression: Restore exceptions were not being caught #537
+  - Introduced in v5.1.1 when moving classes into namespaces.
+- Code quality: Void test return types in moodle-cs v3.3.10 #536
+
+v5.1.1
+
+- Bugfix: Get all meeting recordings, not just the last occurrence #517 (thanks @LGPoly)
+- Bugfix: Choose meeting reports API based on OAuth permissions #525 (thanks @xmontana)
+- Bugfix: Get meeting reports based on end time #514 (thanks @xmontana)
+- Bugfix: Stop showing dates for 'No Fixed Time' meetings #529 (thanks @Melle-Amu)
+- Bugfix: Fix external class namespace #530 (thanks @danmarsden)
+- Bugfix: Store recording types as language keys, not translated strings #516
+- Bugfix: Define testcase class properties (PHP 8.2) #522
+- Code quality: Align with Moodle's new moodle-extra ruleset #521
+- Code quality: Array syntax updates in moodle-cs v3.3.7 #524
+- Code quality: Test against Moodle 4.3 and PHP 8.2 #531
+
+v5.1.0
+
+- Feature: Show activity date/time directly on course page #509 (thanks @cdipe)
+- Regression: Auto recording was forced off by default #505 (thanks @emmarichardson)
+  - Introduced in v4.7.0 when adding automatic recording settings.
+- Bugfix: Validate meeting name length using Zoom's 200 character limit #512 (thanks @lcollong)
+- Bugfix: Resolve database inconsistencies #505 (thanks @fabianbatioja, @foxlapinou)
+- Bugfix: Skip grading/completion during pre-registration #507 (thanks @tbeachy)
+- Bugfix: Correct error message handling #503 (thanks @jwalits)
+- Bugfix: Provide prescribed Promise parameters #499 (thanks @fmido88)
+
 v5.0.0
+
 - Backward incompatible: Drop support for JWT authentication (thanks @aspark21)
   - Zoom requires everyone to use Server-to-Server OAuth by September 1, 2023
 - Backward incompatible: Require PHP 7.1+ (Moodle 3.7+) (thanks @rlaneIT)
 - Backward incompatible: Drop Moodle 3.4 mobile support
 
 v4.10.3
+
 - Bugfix: Also use proxy settings for OAuth token request #494 (thanks @adnbes)
 - Bugfix: Clean up exception handling to avoid notice #482 (thanks @andremenrath)
 - Bugfix: Avoid course/activity completion form overhead #481 (thanks @phette23)

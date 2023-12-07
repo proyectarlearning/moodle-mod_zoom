@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Defines backup_zoom_activity_structure_step class.
+ * Defines backup_activity_structure_step class.
  *
  * @package   mod_zoom
  * @category  backup
@@ -23,10 +23,15 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+namespace mod_zoom;
+
+use backup;
+use backup_nested_element;
+
 /**
  * Define the complete zoom structure for backup, with file and id annotations.
  */
-class backup_zoom_activity_structure_step extends backup_activity_structure_step {
+class backup_activity_structure_step extends \backup_activity_structure_step {
     /**
      * Defines the backup structure of the module.
      *
@@ -35,7 +40,7 @@ class backup_zoom_activity_structure_step extends backup_activity_structure_step
     protected function define_structure() {
         // Define the root element describing the zoom instance.
         $zoom = new backup_nested_element('zoom', ['id'], [
-            'intro', 'introformat', 'grade', 'meeting_id', 'start_url', 'join_url', 'created_at', 'host_id', 'name',
+            'intro', 'introformat', 'grade', 'meeting_id', 'join_url', 'created_at', 'host_id', 'name',
             'start_time', 'timemodified', 'recurring', 'recurrence_type', 'repeat_interval', 'weekly_days', 'monthly_day',
             'monthly_week', 'monthly_week_day', 'monthly_repeat_option', 'end_times', 'end_date_time', 'end_date_option',
             'webinar', 'duration', 'timezone', 'password', 'option_jbh', 'option_start_type', 'option_host_video',
