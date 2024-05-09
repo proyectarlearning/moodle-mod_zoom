@@ -64,10 +64,10 @@ function zoom_supports($feature) {
  * will create a new instance and return the id number of the new instance.
  *
  * @param stdClass $zoom Submitted data from the form in mod_form.php
- * @param mod_zoom_mod_form $mform The form instance (included because the function is used as a callback)
+ * @param mod_zoom_mod_form|null $mform The form instance (included because the function is used as a callback)
  * @return int The id of the newly inserted zoom record
  */
-function zoom_add_instance(stdClass $zoom, mod_zoom_mod_form $mform = null) {
+function zoom_add_instance(stdClass $zoom, ?mod_zoom_mod_form $mform = null) {
     global $CFG, $DB;
     require_once($CFG->dirroot . '/mod/zoom/locallib.php');
 
@@ -143,10 +143,10 @@ function zoom_add_instance(stdClass $zoom, mod_zoom_mod_form $mform = null) {
  * will update an existing instance with new data.
  *
  * @param stdClass $zoom An object from the form in mod_form.php
- * @param mod_zoom_mod_form $mform The form instance (included because the function is used as a callback)
+ * @param mod_zoom_mod_form|null $mform The form instance (included because the function is used as a callback)
  * @return boolean Success/Failure
  */
-function zoom_update_instance(stdClass $zoom, mod_zoom_mod_form $mform = null) {
+function zoom_update_instance(stdClass $zoom, ?mod_zoom_mod_form $mform = null) {
     global $CFG, $DB;
     require_once($CFG->dirroot . '/mod/zoom/locallib.php');
 
@@ -202,6 +202,7 @@ function zoom_update_instance(stdClass $zoom, mod_zoom_mod_form $mform = null) {
     // Get the updated meeting info from zoom, before updating calendar events.
     $response = zoom_webservice()->get_meeting_webinar_info($zoom->meeting_id, $zoom->webinar);
     $zoom = populate_zoom_from_response($zoom, $response);
+    $DB->update_record('zoom', $zoom);
 
     // Update tracking field data for meeting.
     zoom_sync_meeting_tracking_fields($zoom->id, $response->tracking_fields ?? []);
@@ -443,7 +444,6 @@ function zoom_refresh_events($courseid, $zoom, $cm) {
  * @param bool $viewfullnames Should we display full names
  * @param int $timestart Print activity since this timestamp
  * @return boolean True if anything was printed, otherwise false
- * @todo implement this function
  */
 function zoom_print_recent_activity($course, $viewfullnames, $timestart) {
     return false;
@@ -465,7 +465,6 @@ function zoom_print_recent_activity($course, $viewfullnames, $timestart) {
  * @param int $cmid course module id
  * @param int $userid check for a particular user's activity only, defaults to 0 (all users)
  * @param int $groupid check for a particular group's activity only, defaults to 0 (all groups)
- * @todo implement this function
  */
 function zoom_get_recent_mod_activity(&$activities, &$index, $timestart, $courseid, $cmid, $userid = 0, $groupid = 0) {
 }
@@ -478,7 +477,6 @@ function zoom_get_recent_mod_activity(&$activities, &$index, $timestart, $course
  * @param bool $detail print detailed report
  * @param array $modnames as returned by get_module_types_names()
  * @param bool $viewfullnames display users' full names
- * @todo implement this function
  */
 function zoom_print_recent_mod_activity($activity, $courseid, $detail, $modnames, $viewfullnames) {
 }
@@ -490,7 +488,6 @@ function zoom_print_recent_mod_activity($activity, $courseid, $detail, $modnames
  * module uses that capability.
  *
  * @return array
- * @todo implement this function
  */
 function zoom_get_extra_capabilities() {
     return [];
@@ -590,10 +587,10 @@ function zoom_get_monthweek_options() {
  * Populate the calendar event object, based on the zoom instance
  *
  * @param stdClass $zoom The zoom instance.
- * @param stdClass $occurrence The occurrence object passed from the zoom api.
+ * @param stdClass|null $occurrence The occurrence object passed from the zoom api.
  * @return stdClass The calendar event object.
  */
-function zoom_populate_calender_item(stdClass $zoom, stdClass $occurrence = null) {
+function zoom_populate_calender_item(stdClass $zoom, ?stdClass $occurrence = null) {
     $event = new stdClass();
     $event->type = CALENDAR_EVENT_TYPE_ACTION;
     $event->modulename = 'zoom';
@@ -751,7 +748,7 @@ function zoom_grade_item_update(stdClass $zoom, $grades = null) {
  * Delete grade item for given zoom instance
  *
  * @param stdClass $zoom instance object
- * @return grade_item
+ * @return int
  */
 function zoom_grade_item_delete($zoom) {
     global $CFG;
@@ -877,7 +874,7 @@ function zoom_reset_userdata($data) {
  *
  * @param object $mform the course reset form that is being built.
  */
-function zoom_reset_course_form_definition(&$mform) {
+function zoom_reset_course_form_definition($mform) {
     $mform->addElement('header', 'zoomheader', get_string('modulenameplural', 'zoom'));
 
     $mform->addElement('checkbox', 'reset_zoom_all', get_string('resetzoomsall', 'zoom'));
@@ -905,7 +902,6 @@ function zoom_reset_course_form_defaults($course) {
  * @param stdClass $cm
  * @param stdClass $context
  * @return array of [(string)filearea] => (string)description
- * @todo implement this function
  */
 function zoom_get_file_areas($course, $cm, $context) {
     return [];
@@ -927,7 +923,6 @@ function zoom_get_file_areas($course, $cm, $context) {
  * @param string $filepath
  * @param string $filename
  * @return file_info instance or null if not found
- * @todo implement this function
  */
 function zoom_get_file_info($browser, $areas, $course, $cm, $context, $filearea, $itemid, $filepath, $filename) {
     return null;
@@ -968,7 +963,6 @@ function zoom_pluginfile($course, $cm, $context, $filearea, array $args, $forced
  * @param stdClass $course current course record
  * @param stdClass $module current zoom instance record
  * @param cm_info $cm course module information
- * @todo implement this function
  */
 function zoom_extend_navigation(navigation_node $navref, stdClass $course, stdClass $module, cm_info $cm) {
 }
@@ -980,10 +974,9 @@ function zoom_extend_navigation(navigation_node $navref, stdClass $course, stdCl
  * so it is safe to rely on the $PAGE.
  *
  * @param settings_navigation $settingsnav complete settings navigation tree
- * @param navigation_node $zoomnode zoom administration node
- * @todo implement this function
+ * @param navigation_node|null $zoomnode zoom administration node
  */
-function zoom_extend_settings_navigation(settings_navigation $settingsnav, navigation_node $zoomnode = null) {
+function zoom_extend_settings_navigation(settings_navigation $settingsnav, ?navigation_node $zoomnode = null) {
 }
 
 /**

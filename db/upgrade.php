@@ -874,7 +874,7 @@ function xmldb_zoom_upgrade($oldversion) {
         $table = new xmldb_table('zoom');
 
         // Define and conditionally add field registration.
-        $field = new xmldb_field('registration', XMLDB_TYPE_INTEGER, '1', null, null, null, null, 'option_auto_recording');
+        $field = new xmldb_field('registration', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '2', 'option_auto_recording');
         if (!$dbman->field_exists($table, $field)) {
             $dbman->add_field($table, $field);
         }
@@ -931,6 +931,50 @@ function xmldb_zoom_upgrade($oldversion) {
 
         // Zoom savepoint reached.
         upgrade_mod_savepoint(true, 2023111600, 'zoom');
+    }
+
+    if ($oldversion < 2024012500) {
+        // Version 5.1.0 incorrectly upgraded the zoom table's registration field. It should not be null and should default to 2.
+        $table = new xmldb_table('zoom');
+        $field = new xmldb_field('registration', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '2', 'option_auto_recording');
+
+        // Set any null values to the new default: 2.
+        $DB->set_field_select('zoom', 'registration', '2', 'registration IS NULL');
+
+        // Launch change of nullability for field registration.
+        $dbman->change_field_notnull($table, $field);
+
+        // Launch change of default for field registration.
+        $dbman->change_field_default($table, $field);
+
+        // Zoom savepoint reached.
+        upgrade_mod_savepoint(true, 2024012500, 'zoom');
+    }
+
+    if ($oldversion < 2024030100) {
+        // Define field grading_method to be added to zoom.
+        $table = new xmldb_table('zoom');
+        $field = new xmldb_field('grading_method', XMLDB_TYPE_CHAR, '10', null, null, null, null, 'grade');
+
+        // Conditionally launch add field grading_method.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Zoom savepoint reached.
+        upgrade_mod_savepoint(true, 2024030100, 'zoom');
+    }
+
+    if ($oldversion < 2024041900) {
+        // Update existing recording names to default for translatable recordingtype strings.
+        $meetings = $DB->get_records('zoom');
+
+        foreach ($meetings as $meeting) {
+            $DB->set_field_select('zoom_meeting_recordings', 'name', $meeting->name, 'zoomid = ?', [$meeting->id]);
+        }
+
+        // Zoom savepoint reached.
+        upgrade_mod_savepoint(true, 2024041900, 'zoom');
     }
 
     return true;
