@@ -26,6 +26,7 @@ namespace mod_zoom;
 
 defined('MOODLE_INTERNAL') || die();
 
+require_once($CFG->dirroot . '/mod/zoom/lib.php');
 require_once($CFG->dirroot . '/mod/zoom/locallib.php');
 require_once($CFG->libdir . '/filelib.php');
 
@@ -585,20 +586,32 @@ class webservice {
      * database fields to the appropriate API request fields.
      *
      * @param stdClass $zoom The zoom meeting to format.
+     * @param ?int $cmid The cmid if available.
      * @return array The formatted meetings for the meeting.
      */
-    private function database_to_api($zoom) {
+    private function database_to_api($zoom, $cmid) {
         global $CFG;
 
+        $options = [];
+        if (!empty($cmid)) {
+            $options['context'] = \context_module::instance($cmid);
+        }
+
         $data = [
-            'topic' => $zoom->name,
+            // Process the meeting topic with proper filter.
+            'topic' => zoom_apply_filter_on_meeting_name($zoom->name, $options),
             'settings' => [
                 'host_video' => (bool) ($zoom->option_host_video),
                 'audio' => $zoom->option_audio,
             ],
         ];
         if (isset($zoom->intro)) {
-            $data['agenda'] = content_to_text($zoom->intro, FORMAT_MOODLE);
+            // Process the description text with proper filter and then convert to plain text.
+            $data['agenda'] = substr(content_to_text(format_text(
+                $zoom->intro,
+                FORMAT_MOODLE,
+                $options
+            ), false), 0, 2000);
         }
 
         if (isset($CFG->timezone) && !empty($CFG->timezone)) {
@@ -765,9 +778,10 @@ class webservice {
      * Take a $zoom object as returned from the Moodle form and respond with an object that can be saved to the database.
      *
      * @param stdClass $zoom The meeting to create.
+     * @param ?int $cmid The cmid if available.
      * @return stdClass The call response.
      */
-    public function create_meeting($zoom) {
+    public function create_meeting($zoom, $cmid) {
         // Provide license if needed.
         $this->provide_license($zoom->host_id);
 
@@ -776,22 +790,23 @@ class webservice {
         // Classic: webinar:write:admin.
         // Granular: webinar:write:webinar:admin.
         $url = "users/$zoom->host_id/" . (!empty($zoom->webinar) ? 'webinars' : 'meetings');
-        return $this->make_call($url, $this->database_to_api($zoom), 'post');
+        return $this->make_call($url, $this->database_to_api($zoom, $cmid), 'post');
     }
 
     /**
      * Update a meeting/webinar on Zoom.
      *
      * @param stdClass $zoom The meeting to update.
+     * @param ?int $cmid The cmid if available.
      * @return void
      */
-    public function update_meeting($zoom) {
+    public function update_meeting($zoom, $cmid) {
         // Classic: meeting:write:admin.
         // Granular: meeting:update:meeting:admin.
         // Classic: webinar:write:admin.
         // Granular: webinar:update:webinar:admin.
         $url = ($zoom->webinar ? 'webinars/' : 'meetings/') . $zoom->meeting_id;
-        $this->make_call($url, $this->database_to_api($zoom), 'patch');
+        $this->make_call($url, $this->database_to_api($zoom, $cmid), 'patch');
     }
 
     /**
@@ -1041,6 +1056,7 @@ class webservice {
      *
      * @param string $meetingid The string meeting UUID.
      * @return array Returns the list of recording URLs and the type of recording that is being sent back.
+     * @throws moodle_exception
      */
     public function get_recording_url_list($meetingid) {
         $recordings = [];
@@ -1055,32 +1071,27 @@ class webservice {
             'CC' => 'captions',
         ];
 
-        try {
-            // Classic: recording:read:admin.
-            // Granular: cloud_recording:read:list_recording_files:admin.
-            $url = 'meetings/' . $this->encode_uuid($meetingid) . '/recordings';
-            $response = $this->make_call($url);
+        // Classic: recording:read:admin.
+        // Granular: cloud_recording:read:list_recording_files:admin.
+        $url = 'meetings/' . $this->encode_uuid($meetingid) . '/recordings';
+        $response = $this->make_call($url);
 
-            if (!empty($response->recording_files)) {
-                foreach ($response->recording_files as $recording) {
-                    $url = $recording->play_url ?? $recording->download_url ?? null;
-                    if (!empty($url) && isset($allowedrecordingtypes[$recording->file_type])) {
-                        $recordinginfo = new stdClass();
-                        $recordinginfo->recordingid = $recording->id;
-                        $recordinginfo->meetinguuid = $response->uuid;
-                        $recordinginfo->url = $url;
-                        $recordinginfo->filetype = $recording->file_type;
-                        $recordinginfo->recordingtype = $recording->recording_type;
-                        $recordinginfo->passcode = $response->password;
-                        $recordinginfo->recordingstart = strtotime($recording->recording_start);
+        if (!empty($response->recording_files)) {
+            foreach ($response->recording_files as $recording) {
+                $url = $recording->play_url ?? $recording->download_url ?? null;
+                if (!empty($url) && isset($allowedrecordingtypes[$recording->file_type])) {
+                    $recordinginfo = new stdClass();
+                    $recordinginfo->recordingid = $recording->id;
+                    $recordinginfo->meetinguuid = $response->uuid;
+                    $recordinginfo->url = $url;
+                    $recordinginfo->filetype = $recording->file_type;
+                    $recordinginfo->recordingtype = $recording->recording_type ?? 'null';
+                    $recordinginfo->passcode = $response->password;
+                    $recordinginfo->recordingstart = strtotime($recording->recording_start);
 
-                        $recordings[$recording->id] = $recordinginfo;
-                    }
+                    $recordings[$recording->id] = $recordinginfo;
                 }
             }
-        } catch (moodle_exception $error) {
-            // No recordings found for this meeting id.
-            $recordings = [];
         }
 
         return $recordings;
@@ -1124,7 +1135,7 @@ class webservice {
                         $recordinginfo->meetinguuid = $meeting->uuid;
                         $recordinginfo->url = $url;
                         $recordinginfo->filetype = $recording->file_type;
-                        $recordinginfo->recordingtype = $recording->recording_type;
+                        $recordinginfo->recordingtype = $recording->recording_type ?? 'null';
                         $recordinginfo->recordingstart = strtotime($recording->recording_start);
 
                         $recordings[$recording->id] = $recordinginfo;
